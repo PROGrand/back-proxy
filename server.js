@@ -20,10 +20,15 @@ var server = net.createServer(function(client) {
 	tasks[taskId] = client;
 
 	client.on('data', function (data) {
+		console.log('external data IN');
 		if (!proxy) {
+			console.log('no proxy connected.');
 			client.end('No proxy connected');
 			return;
 		}
+
+		//console.log('external data');
+
 		var buf = new Buffer(6);
 		buf.writeUInt16BE(taskId, 0);
 		buf.writeUInt32BE(data.length, 2);
@@ -46,6 +51,13 @@ var server = net.createServer(function(client) {
 		console.log('user-request #' + taskId + ' Error: ' + error.toString());
 		delete tasks[taskId];
 	});
+
+	{ // special CONNECT message.
+		var buf = new Buffer(6);
+		buf.writeUInt16BE(taskId, 0);
+		buf.writeUInt32BE(0xFFFFFFFF, 2);
+		proxy.write(buf);
+	}
 });
 
 server.on('error', function(error) {
@@ -63,6 +75,9 @@ var proxyListener = net.createServer(function(client) {
 
 	var buf = new Buffer(0);
 	proxy.on('data', function (data) {
+
+		//console.log('internal data.');
+
 		buf = Buffer.concat([buf, data]);
 
 		while (buf.length >= 6) {

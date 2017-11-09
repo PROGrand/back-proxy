@@ -9,7 +9,9 @@ var createConnection = function (buf, taskId) {
 
 	var httpConn = tasks[taskId] = net.connect(conf.shared.port, conf.shared.host, function () {
 		console.log('Connected to target #%d %s:%s', taskId, conf.shared.host, conf.shared.port);
-		httpConn.write(buf);
+		
+		if (buf)
+			httpConn.write(buf);
 	});
 
 	httpConn.on('error', function(error) {
@@ -37,7 +39,7 @@ var createConnection = function (buf, taskId) {
 	});
 
 	httpConn.on('data', function (data) {
-		console.log('Send data back for target #' + taskId + ', len=' + data.length);
+		//console.log('Send data back for target #' + taskId + ', len=' + data.length);
 		var buf = new Buffer(6);
 		buf.writeUInt16BE(taskId, 0);
 		buf.writeUInt32BE(data.length, 2);
@@ -71,7 +73,11 @@ function connect() {
 	var buf = new Buffer(0);
 	proxy.on('data', function(data) {
 
+	console.log('data: #' + taskId);
+	
 		buf = Buffer.concat([buf, data]);
+		
+		
 
 		while (buf.length >= 6) {
 			var taskId = buf.readInt16BE(0);
@@ -89,8 +95,16 @@ function connect() {
 
 			} else {
 
-				// Check completed frames in buffer
-				if (6 + size <= buf.length) {
+				if (-1 == size || 0xFFFFFFFF == size)
+				{
+					console.log("Connection request: #%d", taskId);
+					buf = buf.slice(6);
+					createConnection(null, taskId);
+				}
+				else if (6 + size <= buf.length) {
+					
+					// Check completed frames in buffer
+					
 					console.log('New data from upsteam #%d, len=%d', taskId, size);
 
 					// If no such TaskId connection - create it!
